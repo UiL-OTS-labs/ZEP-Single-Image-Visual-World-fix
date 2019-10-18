@@ -1,0 +1,387 @@
+/******************************************************************************\
+FILE:           visworld1.zp
+AUTHOR:         Theo Veenker (UiL-OTS) <T.J.G.Veenker@uu.nl>
+MODIFIED BY:    --
+
+EXPERIMENT:     Single Image Visual World
+
+DESCRIPTION:
+
+
+Purpose of this experiment is to record participant's eye-movements
+while he/she is listening to a spoken utterance and looking at a 
+screen displaying a semi-realistic scene. For each trial a scene 
+is displayed and an utterance relating to the scene is played. 
+Participant's task is to carefully look and listen. Self-paced. 
+Output: Eye-Tracking data as collected by the eye-tracker.
+
+
+Global structure of experiment:
+
+  - welcome
+
+  - instructions
+
+  - eye-tracker calibration
+
+  - practice phase (... trials)
+      trial
+        subtrial 1 (eye-tracker recalibration, only done on drift-check fail)
+        subtrial 2 (stimulus presentation)
+
+  - pause
+
+  - eye-tracker calibration
+
+  - test phase (... trials)
+      trial
+        subtrial 1 (eye-tracker recalibration, only done on drift-check fail)
+        subtrial 2 (stimulus presentation)
+
+  - thankyou
+
+
+HISTORY:
+2012-09-21 TV   Created.
+2015-03-30 CvR  Cleaned and adapted to 1.10
+ 
+\******************************************************************************/
+
+requires 1.17;
+
+//standards:
+import std_windows1;
+// import std_windows1a; // use this one with the smi eyetracker.
+import std_entry_page1;
+import std_exit_page1;
+import std_pause_page;
+import std_blank_page;
+import std_etcal_page;
+import std_sound_output_device;
+
+//specials:
+import texts_en;
+import eyetracker_eyelink;
+//import eyetracker_tobii;
+//import eyetracker_smi;
+//import eyetracker_smi_infant;
+import test_page;
+
+
+Experiment experiment
+{
+    on_event:entry()
+    {   
+        //remember, a lot of setting up is already done in session.zm::setup_session()
+        show_test_windows();
+
+        setup_button_box();
+    }
+
+    void setup_button_box()
+    {
+        control.button_box.open("/dev/ttyACM0");
+        // If necessary set parallel port line D0 to power button box device (required on most new systems)
+    }
+
+    on_event:message()
+    {
+        // On Ctrl+F4 unconditionally jump to thankyou phase.
+        if (message_sender == control && message_arg == SYS_STOP)
+        {
+            control.mark_experiment_aborted();
+            thankyou.enter();
+        }
+    }
+
+    Part welcome
+    {
+        on_event:entry()
+        {
+            entry_page.set_text(WELCOME_TEXT);
+            entry_page.action(this, 0s);
+        }
+    }
+
+
+    Part instructions
+    {
+        on_event:entry()
+        {
+            pause_page.set_text(INSTRUCTION_TEXT, true);
+            pause_page.action(this);
+            control.button_box.enable_all_buttons(CONTINUE);
+        }
+    }
+
+
+    Part calibration1
+    {
+        on_event:entry()
+        {
+            etcal_page.action(this);
+        }
+    }
+
+
+    Block practice
+    {
+        on_event:entry()
+        {
+            experiment.open_data_file();
+
+            num_cycles = test_prac_items.size;
+            // Display progress bar
+            //test_page.setup(num_cycles);
+            // hide progress bar
+            test_page.setup(-1);
+        }
+
+        on_event:exit()
+        {
+            test_page.cleanup();
+
+            eyetracker.abort();
+        }
+
+        Trial trial
+        {
+            TestItem        current_item; 
+
+            on_event:entry()
+            {
+                current_item = test_prac_items[practice.cycle];
+                eyetracker.set_tracker_status_message("Practice trial " +  string(practice.cycle+1));
+            }
+
+            on_event:exit()
+            {
+                eyetracker.set_tracker_status_message("");
+            }
+
+            TransientPart
+            {
+                on_event:entry()
+                {
+                    presentation.enter();       // Skip calibration part.
+                }
+            }
+
+            Part recalibration
+            {
+                on_event:entry()
+                {
+                    etcal_page.action(this);
+                }
+            }
+
+            SubTrial presentation
+            {
+                on_event:entry()
+                {
+                    test_page.action(this, current_item, reference_time, practice.cycle);
+                }
+            }
+
+            TransientPart recalibrate_check
+            {
+                on_event:entry()
+                {
+                    if (test_page.response.recalibrate)
+                        recalibration.enter(); 
+                }
+            }
+        }
+    }
+
+
+    Part
+    {
+        on_event:entry()
+        {
+            blank_page.action_auto(this, 500ms);
+        }
+    }
+
+    Part practice_pause
+    {
+        on_event:entry()
+        {
+            pause_page.set_text(PRACTICE_PAUSE_TEXT, true);
+            pause_page.action(this);
+            control.button_box.enable_all_buttons(CONTINUE);
+        }
+    }
+
+    Part calibration2
+    {
+        on_event:entry()
+        {
+            etcal_page.action(this);
+        }
+    }
+
+    Block test
+    {
+        on_event:entry()
+        {	
+            experiment.open_data_file();
+
+            num_cycles = test_items[selected_group].size;
+            // Display progress bar
+            //test_page.setup(num_cycles);
+            // hide progress bar
+            test_page.setup(-1);
+        }
+
+        on_event:exit()
+        {
+            test_page.cleanup();
+
+            eyetracker.abort();
+            eyetracker.close_data_file();
+
+            // Save test phase output table as CSV file.
+            test_output_save();
+        }
+
+
+        Trial trial
+        {
+            TestItem    current_item; 
+            TestOutput  current_output;
+
+            on_event:entry()
+            {
+                current_item = test_items[selected_group][test.cycle];
+
+                // Add begin of trial message to eye-tracker data file for
+                // analysis with the Fixation tool (Cozijn 1994).
+                eyetracker.print_to_data_file(
+                    "trialbeg " +  string(test.cycle + 1) + " " +
+                    format(current_item.id,3) + " " +
+                    string(current_item.type)
+                    );
+                eyetracker.print_to_data_file(
+                    "plafile " + string(current_item.type) +
+                    format(current_item.id,3) + ".bmp"
+                    );
+                eyetracker.print_to_data_file("wavfile " + current_item.sound_filename); 
+
+                eyetracker.set_tracker_status_message("Test trial " + string(test.cycle+1));
+            }
+            
+            on_event:exit()
+            {
+                current_output.trialnum = test.cycle + 1;
+                current_output.id = current_item.id;
+                current_output.type = current_item.type;
+                current_output.image_filename = current_item.image_filename;
+                current_output.sound_filename = current_item.sound_filename;
+                current_output.recorded_eye_movements = current_item.record_eye_movements;
+                current_output.did_drift_check = current_item.do_drift_check;
+
+                //test specific output:
+                current_output.expected_response = current_item.expected_answer;
+                current_output.value = test_page.response.value;
+                current_output.correct = test_page.response.correct;
+                current_output.rt = test_page.response.rt;
+
+                test_output_append(current_output);
+
+                // Add end of trial message.
+                eyetracker.print_to_data_file(
+                    "trialend " + string(test.cycle + 1) + " " +
+                    format(current_item.id,3) + " " +
+                    string(current_item.type)
+                    );
+
+                eyetracker.set_tracker_status_message("");
+            }
+
+            TransientPart
+            {
+                on_event:entry()
+                {
+                    presentation.enter();       // Skip calibration part.
+                }
+            }
+
+
+            Part recalibration
+            {
+                on_event:entry()
+                {
+                    etcal_page.action(this);
+                }
+            }
+
+
+            SubTrial presentation
+            {
+                on_event:entry()
+                {
+                    test_page.action(this, current_item, reference_time, test.cycle);
+                }
+            }
+
+            TransientPart recalibrate_check
+            {
+                on_event:entry()
+                {
+                    if (test_page.response.recalibrate)
+                        recalibration.enter(); 
+                }
+            }
+        }
+    }
+
+    Part
+    {
+        on_event:entry()
+        {
+            blank_page.action_auto(this, 500ms, 500ms);
+        }
+    }
+
+
+    Part thankyou
+    {
+        on_event:entry()
+        {
+            control.end_experiment();   // Check-in session.
+
+            exit_page.set_text(THANK_YOU_TEXT);
+            exit_page.action(this, 10s);
+        }
+
+
+        on_event:exit()
+        {
+            // We're closing. Retrieve eye-movement data file recorded.
+            eyetracker.retrieve_data_files();
+        }
+    }
+
+    void open_data_file()
+    {
+        int listnum = selected_group + 1;
+        int recordingnum = 1;
+        string edfname = 
+            format(expdb.experiment.session.id, 4) + "_" + 
+            format(listnum, 2) + "_" + 
+            format(recordingnum, 2);
+
+        // Let eye-tracker open a data file. 
+        eyetracker.open_data_file(
+            edfname, 
+            expdb.experiment.id, 
+            expdb.researcher.id, 
+            expdb.participant.id, 
+            expdb.experiment.session.id, 
+            listnum,
+            recordingnum
+            );
+        eyetracker.print_to_data_file(expdb.experiment.id);
+    }
+}

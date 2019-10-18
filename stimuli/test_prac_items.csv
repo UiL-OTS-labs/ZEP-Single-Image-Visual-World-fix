@@ -1,0 +1,5 @@
+"   ### Practice phase items ###";;;;;;
+"id";"type";"image_filename";"sound_filename";"expected_answer";"record_eye_movements";"do_drift_check"
+1;"PRAC";"hammer.png";"appels.wav";1;"false";"true"
+2;"PRAC";"apple.png";"bomen.wav";1;"false";"true"
+3;"PRAC";"hammer.png";"appels.wav";1;"false";"true"

@@ -1,0 +1,30 @@
+//test_pseudorandomisation.zp
+
+// Script to check the "random" module's item table shuffling function.
+// This version is for a two-dimensional item table (used for between-groups designs
+
+import defs;
+import std_defs;
+
+import stimuli;
+import random;
+
+start()
+{
+	if(load_stimuli() == ERROR) 
+	{
+		println("Failed to load files, terminating.");
+		terminate;
+	}
+
+	int n;
+	while (n < test_items.size)
+	{
+		println("Shuffle for test items for index/group: " + n);
+		shuffle_stimuli(n);
+		dump_test_items(n);
+		n++;
+	}
+
+	terminate;
+}

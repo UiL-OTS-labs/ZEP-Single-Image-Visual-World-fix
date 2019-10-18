@@ -1,0 +1,350 @@
+/******************************************************************************\
+FILE:           eyetracker_eyelink_infant.zm
+AUTHOR:         Theo Veenker (UiL-OTS) <T.J.G.Veenker@uu.nl>
+MODIFIED BY:    Alex Manus (UiL-OTS) <A.T.Manus@uu.nl>
+ADAPTED BY:     -
+
+DESCRIPTION:
+
+Provides an interface to the EyeLink eye-tracker. Since this version is to
+be used for infant studies it uses images for the targets and sounds are 
+played on various events. Compare with eyetracker.zm to see which other 
+settings have been changed.
+
+
+HISTORY:
+2012-09-21 TV   Created.
+
+\******************************************************************************/
+
+plugin zep_eyetrk;
+plugin zep_file;
+
+import std_sound_output_device;
+import std_sound_playback;
+
+
+enum EyeTrkMessage
+{
+    DRIFT_CHECK_DONE,
+    RECALBIRATE,
+    RECORDING_DONE,
+}
+
+
+EyeLinkEyeTracker eyetracker
+{
+    init()
+    {
+        // Optimal distance and range from eye to eye-tracker camera.
+        // These values are only used in camera setup display.
+//        optimal_eye_to_camera_distance  = 600;          // mm
+//        eye_to_camera_range             = 500;          // mm
+
+        // The following attributes define appearance of calibration targets.
+
+//        wakeup_target_duration          = 1000ms;
+        focus_target_duration           = 1000ms;
+
+//        default_target_line_color       = color:black;
+//        default_target_color            = color:red;
+//        wakeup_target_color             = color:yellow;
+
+        focus_target_image              = zep_dir() + "data/images/teddy.svg";
+        wakeup_target_image             = zep_dir() + "data/images/sun.svg";
+
+        cross_fade_focus_target         = false;
+        min_target_size                 = 40;
+        max_target_size                 = 150;
+        setup_target_size               = 150;
+        target_size_mod                 = 0.0;
+//        target_size_mod_freq            = 1;
+//        target_wiggle_mod               = 0.05;
+        target_wiggle_mod_freq          = 2;
+
+//        simulated_gaze_noise            = 0.01;
+    }
+
+
+    on_event:connected()
+    {
+        // Calibration type.
+        calibration_type                = CALIB_TYPE_3C;
+
+        // For infants you may want to trigger calibration targets manually.
+        manual_calibration              = true;
+
+        // Configuration of the EyeLink gaze parser:
+        //   0: cognitive configuration (standard sensitivity)
+        //   1: pursuit and neurological configuration
+//        analyzer_configuration          = 0;
+
+        // Fixation update interval.
+//        fixation_update_interval        = 50ms;
+
+        // Desired eye-movement data file format:
+        //   NONE:   no eye-movement data saved
+        //   SYSTEM: eye-tracker defined format (preferred)
+        //   ZEP:    zep defined format
+        //   BOTH:   both eye-tracker and zep defined format
+        data_file_format                = EYE_FILE_FORMAT_SYSTEM;
+
+        // Where to store eye-movement data files.
+        data_file_output_dir            = data_dir() + script_name() + "/dat/";
+
+        // Create folder for retrieved eye-movement data files.
+        if (!file_exists(data_file_output_dir)) 
+            create_dir_tree(data_file_output_dir);
+    }
+
+
+    // Called on entering the camera setup menu.
+    on_event:camera_setup_begin()
+    {
+        // Play a sound 5 times with 5s interval.
+        sound_playback.play(zep_dir() + "data/sounds/baby-giggle.wav", 
+            now() + 1000ms, 5000ms, 5);
+    }
+
+
+    // Called on continuing with camera setup after the participant has been
+    // presented a wake-up image/sound.
+    on_event:camera_setup_cont()
+    {
+        // Play a sound 5 times with 5s interval.
+        sound_playback.play(zep_dir() + "data/sounds/baby-giggle.wav", 
+            now() + 1000ms, 5000ms, 5);
+    }
+
+
+    // Called on entering the focus-in phase of the calibration target display.
+    on_event:focus_begin()
+    {
+        // Play a sound.
+        sound_playback.play(zep_dir() + "data/sounds/chime-down.wav", 
+            now() + 10ms);
+    }
+
+
+    // Called on entering the final phase of the calibration target display.
+    on_event:final_begin()
+    {
+        // Play a sound.
+        sound_playback.play(zep_dir() + "data/sounds/chime-up.wav", 
+            now() + 10ms);
+    }
+
+
+    // Called on continuing with the final phase after the participant has 
+    // been presented a wake-up image/sound.
+    on_event:final_cont()
+    {
+        // Play a sound.
+        sound_playback.play(zep_dir() + "data/sounds/chime-up.wav", 
+            now() + 10ms);
+    }
+
+
+    // Called at start of a participant wake-up signal.
+    on_event:wakeup_begin()
+    {
+        // Play a sound.
+        sound_playback.play(zep_dir() + "data/sounds/baby-laugh.wav", 
+            now() + 10ms);
+    }
+
+
+    // Called when a calibration target is removed.
+    on_event:target_end()
+    {
+        // Kill any sound if still playing.
+        sound_playback.abort();
+    }
+
+
+    on_event:drift_check_done()
+    {
+        // Kill any sound if still playing.
+        sound_playback.abort();
+
+        signal_target(DRIFT_CHECK_DONE);
+    }
+
+
+    on_event:drift_check_fail()
+    {
+        // Kill any sound if still playing.
+        sound_playback.abort();
+
+        signal_target(RECALBIRATE);
+    }
+
+
+    on_event:drift_check_abort()
+    {
+        // Kill any sound if still playing.
+        sound_playback.abort();
+
+        signal_target(RECALBIRATE);
+    }
+
+
+    on_event:tracking_done()
+    {
+        control.hide_gaze();
+        control.hide_fixation();
+
+        signal_target(RECORDING_DONE);
+    }
+
+
+    on_event:tracking_fail()
+    {
+        control.hide_gaze();
+        control.hide_fixation();
+
+        signal_target(RECORDING_DONE);
+    }
+
+
+    on_event:tracking_abort()
+    {
+        control.hide_gaze();
+        control.hide_fixation();
+
+        signal_target(RECORDING_DONE);
+    }
+
+
+    on_event:gaze_sample()
+    {
+        // Reported eye positions are relative to the test window.
+
+        if (!gaze_ignore)
+        {
+            control.show_gaze(
+                gaze_left_x / test_window1.width, 
+                gaze_left_y / test_window1.height);
+        }
+        else
+        {
+            control.hide_gaze();
+        }
+    }
+
+
+    on_event:fixation_start()
+    {
+        // Reported eye positions are relative to the test window.
+
+        control.show_fixation(
+            fixation_x / test_window1.width, 
+            fixation_y / test_window1.height);
+    }
+
+
+    on_event:fixation_end()
+    {
+        // Reported eye positions are relative to the test window.
+
+        control.hide_fixation();
+    }
+
+
+    on_event:fixation_update()
+    {
+        // Reported eye positions are relative to the test window.
+
+        control.show_fixation(
+            fixation_x / test_window1.width, 
+            fixation_y / test_window1.height);
+    }
+
+
+    on_event:blink_start()
+    {
+        control.hide_gaze();
+        control.hide_fixation();
+    }
+
+
+    on_event:blink_end()
+    {
+    }
+
+
+    on_event:proceed()
+    {
+        signal_target(CONTINUE);
+        target = null;
+    }
+
+
+    // Processes specified eye x-coordinate.
+    real fix_eye_position_x(real xeye)
+    {
+        // Passed eye positions are relative to the test window.
+
+        // In case we have a scaled down test window (may happen when
+        // playing), scale up xeye accordingly.
+        if (test_window1.virtual_width > 0)
+            xeye *= real(test_window1.virtual_width) / 
+                test_window1.width;
+
+        return xeye;
+    }
+
+
+    // Processes specified eye y-coordinate.
+    real fix_eye_position_y(real yeye)
+    {
+        // Passed eye positions are relative to the test window.
+
+        // In case we have a scaled down test window (may happen when
+        // playing), scale up yeye accordingly.
+        if (test_window1.virtual_height > 0)
+            yeye *= real(test_window1.virtual_height) / 
+                test_window1.height;
+
+        return yeye;
+    }
+
+
+    bool handle_key(char key, int modifiers)
+    {
+        // Process latest key press event.
+        if (handle_key_press()) 
+            return true;
+
+        // Check for F7/F8 and Ctrl+F7/F8 to toggle gaze/fixation display on 
+        // control window or test window.
+        if (key == KEY_F7) 
+        {
+            if (modifiers == INPUT_MOD_CONTROL)
+            {
+                show_gaze = !show_gaze;
+                return true;
+            }
+            else if (modifiers == 0)
+            {
+                control.toggle_show_gaze();
+                return true;
+            }
+        }
+        else if (key == KEY_F8)
+        {
+            if (modifiers == INPUT_MOD_CONTROL)
+            {
+                show_fixations = !show_fixations;
+                return true;
+            }
+            else if (modifiers == 0)
+            {
+                control.toggle_show_fixations();
+                return true;
+            }
+        }
+        
+        return false;
+    }
+}

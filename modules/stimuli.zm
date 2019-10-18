@@ -1,0 +1,167 @@
+/******************************************************************************\
+FILE:           stimuli.zm
+AUTHOR:         Theo Veenker (UiL-OTS) <T.J.G.Veenker@uu.nl>
+MODIFIED BY:    Alex Manus (UiL-OTS) <A.T.Manus@uu.nl>
+ADAPTED BY:     Hans Rutger Bosker (UiL-OTS) <H.R.Bosker@uu.nl>
+
+DESCRIPTION:
+
+Defines the formats of item table(s) and provides the actual content of
+the item table(s) i.e. stimulus information.
+
+
+HISTORY:
+2012-09-21 TV   Created.
+2012-10-02 HRB  Adapted from four-image VWP to two-image VWP.
+
+\******************************************************************************/
+
+plugin zep_file;
+
+// Symbolic definition of item type.
+enum ItemType
+{
+    PRAC,		      // practice trials
+    CNDA,             // condition A
+    CNDB,             // condition B
+    CNDC,             // condition C
+    CNDD,             // condition D
+    FILL,		      // fillers
+}
+
+enum ScreenLocation
+{
+   CENTER
+}
+
+// Item record used for the test phase item table.
+record TestItem
+{
+    int         id;                     // item id
+    ItemType    type;                   // item type
+    string      image_filename;         // image stimulus filename
+    string      sound_filename;         // sound stimulus filename
+    int         expected_answer;
+    bool        record_eye_movements;   // if set, record eye movements
+    bool        do_drift_check;         // if set, perform drift check
+}
+
+// Item table used in the practice phase before the test phase.
+TestItem[..] test_prac_items;
+
+// Item table used in the test phase.
+TestItem[..][..] test_items;
+
+int all_stimuli_items_exist()
+{
+    if(all_items_files_exists(test_prac_items)==ERROR)
+    {
+        println("some PRACTICE items do not exist, error.");
+        return ERROR;
+    }
+    int index = 0;
+    while(index< test_items.size)
+    {
+         if(all_items_files_exists(test_items[index])==ERROR)
+        {
+            println("some TEST items do not exist for group " + index + ", error.");
+            return ERROR;          
+        }
+         index++;
+    }
+    return OK;
+}
+
+int all_items_files_exists(TestItem[] items)
+{
+    int index = 0;
+
+    while(index < items.size)
+    {
+        TestItem item = items[index];
+        
+        string full_path_to_image = stimuli_dir() + "images/" + item.image_filename;
+        string full_path_to_sound = stimuli_dir() + "sounds/" + item.sound_filename;
+
+        if(!file_exists(full_path_to_image))
+        {
+            println("ERROR: could not locate " + full_path_to_image);
+             return ERROR;
+        }
+        if(!file_exists(full_path_to_sound))
+        {
+             println("ERROR: could not locate " + full_path_to_sound);
+            return ERROR;
+        }
+        index++;
+    }
+
+    return OK;   
+}
+
+int load_stimuli()
+{
+     if (load_prac_stimuli() != OK)
+        {
+            println("problem loading PRACTICE stimuli from file, terminating\n" );
+            return ERROR;
+        }
+
+    if (load_test_stimuli() != OK)
+        {
+            println("problem loading TEST stimuli from file, terminating\n" );
+             return ERROR;
+        }
+
+        return OK;        
+}
+
+int shuffle_stimuli(int lst)
+{
+    if (shuffle_test_items(lst) != OK) 
+    {
+        println("problem shuffling stimuli for group: " + lst + ", terminating\n" );
+        return ERROR;
+    }
+    return OK;
+}
+
+// Loads item table(s) from CSV file(s) in the stimuli folder.
+int load_prac_stimuli()
+{
+    // Uncomment relevant parts below to load stimuli from CSV file.
+
+    int err;
+
+//    // Load data into test_prac_items table.
+    err = test_prac_items.load(stimuli_dir() + "test_prac_items.csv", 
+        true,           // if true, file contains a header row
+        1);             // number of lines to skip before header and data
+    if (err) return err;
+
+    return OK;
+}
+
+int load_test_stimuli()
+{
+    // Uncomment relevant parts below to load stimuli from CSV file.
+
+    int err;
+    // Load data into test_items table.
+    err = test_items.load(stimuli_dir() + "test_items.csv", 
+        true,           // if true, file contains a header row
+        1);             // number of lines to skip before header and data
+    if (err) return err;
+
+    return OK;
+}
+
+// Saves item table(s) as CSV file(s) in the script folder.
+void save_stimuli()
+{
+    test_prac_items.save(script_dir() + "test_prac_items.csv", 
+        "Test phase practice items");
+
+    test_items.save(script_dir() + "test_items.csv", 
+        "Test phase items");
+}

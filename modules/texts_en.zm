@@ -1,0 +1,60 @@
+/******************************************************************************\
+FILE:           std_texts_en.zm
+AUTHOR:         Theo Veenker <theo.veenker@beexy.nl>
+ADAPTED BY:     -
+
+DESCRIPTION:
+
+Defines texts on buttons and other graphic elements.
+English version.
+
+
+HISTORY:
+2009-12-02 TV   Created as part of the standard Zep modules.
+
+\******************************************************************************/
+
+
+// Button texts.
+const string    CONTINUE_BUTTON_TEXT            = "Continue";
+const string    NEXT_BUTTON_TEXT                = "Next";
+const string    REPEAT_BUTTON_TEXT              = "Repeat";
+const string    YES_BUTTON_TEXT                 = "Yes";
+const string    NO_BUTTON_TEXT                  = "No";
+const string    TRUE_BUTTON_TEXT                = "True";
+const string    FALSE_BUTTON_TEXT               = "False";
+const string    CORRECT_BUTTON_TEXT             = "Correct";
+const string    INCORRECT_BUTTON_TEXT           = "Incorrect";
+const string    FIRST_BUTTON_TEXT               = "First";
+const string    SECOND_BUTTON_TEXT              = "Second";
+
+
+// Other texts.
+const string    WELCOME_TEXT                    = "Welcome";
+const string    THANK_YOU_TEXT                  = "End of Experiment\n\nThank you very much!";
+
+const string INSTRUCTION_TEXT =  
+"<b>Dear participant,</b>\n"
+"\n"
+"Thank you for participating in this experiment.\n"
+"\n"
+"You are now going to see objects on the screen and hear "
+"spoken instructions. The objects come two at a time and each "
+"set of two is accompanied by one instruction. Your task is "
+"to carefully listen to the instruction while looking at the "
+"objects.\n"
+"Then select the object mentioned in the instruction using the "
+"button box.\n"
+"\n"
+"First we will calibrate the eye-tracker followed by a short "
+"practice.\n"
+"\n"
+"<i>Hit Enter when ready to start.</i>";
+
+const string PRACTICE_PAUSE_TEXT = 
+ "End of the practice part.\n"
+"\n"
+"If you have any questions at this moment please ask the "
+"experimenter now.\n"
+"\n"
+"<i>Hit Enter when ready to proceed.</i>";

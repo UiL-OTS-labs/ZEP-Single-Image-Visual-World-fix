@@ -1,0 +1,41 @@
+
+// Test phase output table record, defining what is to be logged for
+// each trial.
+
+record TestOutput
+{
+    int         trialnum;               // trial number
+
+    int         id;                     // item id
+    ItemType    type;                   // item type (condition)
+    bool        recorded_eye_movements; // if set, record eye movements
+    bool        did_drift_check;
+    string      sound_filename;         // sound stimulus filename
+    string      image_filename;         // image stimulus filename 1
+    int         expected_response;      // which response is the correct one.
+    int         value;                  // response value: 0=False,1=True,-1=timeout
+    int         correct;                // response value: 0=incorrect,1=correct,-1=timeout
+    int         rt;                     // response time [ms]
+}
+
+
+// Test phase output table.
+TestOutput[..] test_output;
+
+// Appends one row of data to test phase output table.
+void test_output_append(TestOutput data)
+{
+    test_output.size = test_output.size + 1;
+    test_output[test_output.size-1] = data;
+}
+
+
+// Writes test phase output table contents to CSV file and clears the table.
+void test_output_save()
+{
+    // Append table to CSV file (create if non-existent). The filename 
+    // format is: <dbname>/<dbnum>/<expname>/ses<sesid>-<tblnum>.csv
+    test_output.append(expdb.experiment.session.table_filename(1), 
+        "Test phase results");
+    test_output.size = 0;
+}

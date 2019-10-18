@@ -1,0 +1,16 @@
+// Symbolic definition of groups.
+enum TestGroup
+{
+    GRP1,
+    GRP2,
+    GRP3,
+    GRP4,
+}
+
+
+// Assigns participant to a group.
+int assign_participant_to_group()
+{
+    // Select a group based on the number of sessions done so far.
+    return select_group_from_num_sessions();
+}

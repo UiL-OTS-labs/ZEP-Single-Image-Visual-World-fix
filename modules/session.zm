@@ -1,0 +1,20 @@
+// This function is called after group assignment and check out of experiment,
+// researcher, participant and group records, but before the new session has
+// been created. At this point the database is fully accessible.
+int setup_pre_session()
+{
+    return OK;
+}
+
+
+// This function is called just after the new session has been created. So
+// the new session id is known. At this point the database is still fully
+// accessible.
+int setup_session()
+{
+  if(load_stimuli() == ERROR) return ERROR;
+  if(all_stimuli_items_exist()==ERROR) return ERROR;
+  if(shuffle_stimuli(selected_group) == ERROR) return ERROR;
+
+  return OK;
+}

@@ -1,0 +1,535 @@
+/******************************************************************************\
+FILE:           test_page.zm
+AUTHOR:         Theo Veenker (UiL-OTS) <T.J.G.Veenker@uu.nl>
+MODIFIED BY:    Chris van Run (UiL OTS) <C.P.A.vanRun@uu.nl>
+ADAPTED BY:     -
+
+DESCRIPTION:
+
+Provides a page object to show to the participant during test phase trials.
+It handles presenting the stimulus and recording the participant's response.
+
+
+HISTORY:
+2012-09-21 TV   Created.
+2015-04-01 CvR  Adapted to 1.10 and cleaned
+2019-10-18 MD   Adapted to 1.17 add 3 stimuli to be presented after each other
+                                in time.
+
+\******************************************************************************/
+
+
+Page test_page
+{
+    TestItem    item;  
+
+    init()
+    {
+        fill_pattern_color = TEST_PAGE_COLOR;
+    }
+    
+    on_event:button_press()
+    {
+        if(SELECT_ITEMS_BY_MOUSE) {}
+            handle_mouse_click(input_pointer_x, input_pointer_y, event_time);
+    }
+
+    on_event:key_press()
+    { 
+        if (input_key == KEY_Shift_L)
+            response.process_hit(0, event_time);
+        else if (input_key == KEY_Shift_R)
+            response.process_hit(1, event_time);
+        else if (input_key == KEY_Return || input_key == ' ')
+            response.process_hit(2, event_time);
+        else if (!eyetracker.handle_key(input_key, input_modifiers)) 
+            handle_special_key(this, input_key, input_modifiers);
+    }
+
+    on_event:message()
+    {
+        if (message_sender == eyetracker)
+            handle_eyetracker_message();
+        else if (message_sender == control)
+            handle_control_message();
+    }
+
+    void handle_eyetracker_message()
+    {
+        if (message_arg == DRIFT_CHECK_DONE)
+            start_actual_presentation();
+        else if (message_arg == RECALIBRATE)
+            cancel_to_recalibrate();
+    }
+
+    void handle_control_message()
+    {
+        response.process_hit(message_arg, event_time);
+    }
+
+    void handle_mouse_click(int x, int y, time time_reference)
+    {
+        CanvasGadget[] regions = layout.regions_of_interests.regions;
+        int[] response_codes = layout.regions_of_interests.response_codes;
+        int index = 0;
+
+        while(index < regions.size)
+        {
+            if(within_GuiItem(x,y, regions[index]))
+                response.process_hit(response_codes[index], time_reference);
+            index++;
+        }
+    }
+
+    bool within_GuiItem(int x, int y, GuiItem item)
+    {
+        if(x < item.x || y < item.y)
+            return false;
+        else if(x >= item.x + item.width || y >= item.y + item.height )
+            return false;
+        return true;
+    }
+
+    StackLayout layout
+    {
+        int get_mid_x_coor()
+        {
+            return stimuli.x_abs+(stimuli.actual_width/2); 
+        }
+
+        int get_mid_y_coor()
+        {
+            return stimuli.y_abs+(stimuli.actual_height/2); 
+        }
+
+        VerticalLayout background
+        {
+            CanvasGadget
+            {
+                init()
+                {
+                    fill_pattern_color = color:white;
+                    size = 800, 800;
+                }
+            }
+        }
+
+        HorGridLayout stimuli
+        {
+            init()
+            {
+                wrap_count = 2;
+                is_visible = false;
+            }
+
+            on_event:start()
+            {
+                regions_of_interests.reload();
+                int dt = int(now() - start_time);
+                eyetracker.print_to_data_file(start_time, "SYNCTIME " + string(dt));
+                eyetracker.print_to_data_file(start_time, string(dt) + " DISPLAY ON");
+
+                time cross_onset = event_time + CROSS_ONSET_AFTER_STIM;
+
+                image1canvas.mask.start(cross_onset, CROSS_DURATION);
+                image1canvas.cross.start(cross_onset, CROSS_DURATION);
+            }
+
+            CanvasGadget image1canvas
+            {
+                init()
+                {
+                    size = 400, 400;
+                    offset_x = floor(width / 2);
+                    offset_y = floor(height / 2);
+                }
+
+                ImageShape image1
+                {
+                    init()
+                    {
+                        is_visible=true;
+                    }
+                }
+
+                // This 
+                RectangleShape mask
+                {
+                    init()
+                    {
+                        width = image1canvas.width;
+                        height = image1canvas.height;
+                        fill_pattern_color = color:white;
+                        is_visible = false;
+                        // transform the mask back to its original position
+                        offset_x = -width/2;
+                        offset_y = -height/2;
+                    }
+                }
+                
+                CrossShape cross
+                {
+                    init()
+                    {
+                        radius      = 20;
+                        line_width  = 5;
+                        line_pattern_color = color:black;
+                        is_visible = false;
+                    }
+                }
+            }
+
+            void load_all_images(string[] filenames)
+            {
+                load_image(image1canvas.image1, filenames[CENTER]);
+            }
+
+            void load_image(ImageShape target_image, string filename)
+            {
+                target_image.image = stimuli_dir() + "/images/" + filename;
+
+                target_image.x = floor(-target_image.actual_width / 2);
+                target_image.y = floor(-target_image.actual_height / 2);
+            }
+        }
+
+        FreeLayout regions_of_interests
+        {
+            CanvasGadget[..] regions;
+            int[..] response_codes;
+
+            init()
+            {
+                regions.size = 1;
+                response_codes.size = 1;
+                regions[0] = region1; response_codes[0] = 1;
+            }
+
+            void highlight_regions()
+            {
+                int index = 0;
+                while(index<regions.size)
+                {
+                    regions[index].border_style = BORDER_DOTTED;
+                    regions[index].border = 5;
+                    regions[index].border_color = color:red;
+                    index++;
+                }
+            }
+
+            CanvasGadget region1 {}
+
+            void reload()
+            {
+                copy_properties_from_to(stimuli.image1canvas, region1);
+            }
+
+            void copy_properties_from_to(GuiItem source, GuiItem target)
+            {
+                target.x = source.x;
+                target.y = source.y;
+                target.width = source.width;
+                target.height = source.height;
+            }
+        }
+
+        time start_stimulus(time t)
+        {
+            reset();
+
+            // Prepare stimulus presentation objects.
+            string[..] filenames;
+            filenames.size = 1;
+            filenames[CENTER] = item.image_filename;
+
+            stimuli.load_all_images(filenames);
+
+            regions_of_interests.start(t);
+
+            if(HIGHLIGHT_REGION_OF_INTEREST)
+                regions_of_interests.highlight_regions();
+
+            // Start picture stimuli.
+            stimuli.start(t);
+
+            // Return stimulus onset time.
+            return stimuli.expected_start_time;
+        } 
+
+        void load_image_into(string filepath, ButtonGadget stim)
+        {
+            stim.fill_pattern_image = filepath;
+            stim.fill_pattern_offset_x = ( stim.width - image_width(filepath) ) /2;
+            stim.fill_pattern_offset_y = ( stim.height - image_height(filepath) ) /2;
+        }
+
+        void reset()
+        {
+            full_abort();
+
+            regions_of_interests.is_visible = false;
+            stimuli.is_visible = false;
+        } 
+    }
+
+    Timer drift_check_timer
+    {
+        on_event:expire()
+        {
+            // Tell eye-tracker which target page to draw on and which
+            // object to signal when drift-check is done or aborted.
+            eyetracker.target_page = test_page;
+            eyetracker.target = test_page;
+
+            int x = layout.get_mid_x_coor();
+            int y = layout.get_mid_y_coor();
+
+            eyetracker.start_drift_check(x, y);
+        }
+    }
+
+    SoundChain auditory_stimulus
+    {
+        SoundFile clip {}
+        SoundPlayback playback {}
+
+        time play(time t)
+        {
+            abort();
+
+            playback.device = sound_output_device;
+            clip.file = stimuli_dir() + "sounds/" + item.sound_filename;
+
+            start(t);
+
+            return expected_start_time;
+        }
+    }
+
+
+    Response response
+    {
+        // Response data.
+        int     value;          // response value: 1=L,2=R,-1=timeout
+        int     rt;             // response time [ms]
+        bool    recalibrate;    // set, when eye-tracker recalibration required
+        int     correct;        // correct response: 0=no, 1=yes, -1=n.a. 
+
+        void clear()
+        {
+            correct = -1; // correct response: 0=no, 1=yes, -1=n.a.  
+            value = -1;
+            rt = -9999;
+            recalibrate = false;
+        }
+
+
+        void process_hit(int val, time t)
+        {
+            HitType validity = hit(t);
+
+            // Accept the first hit in the response interval and end the 
+            // response interval.
+            if (validity == HIT_VALID)
+            {
+                value = val;
+                rt = int(reaction_time(0));             
+                correct = val == item.expected_answer;
+
+                ignore_remaining_hits();
+                auditory_stimulus.abort();         
+                
+                stop(t + RECORD_EXTRA_AFTER_RESPONSE);
+            }
+            else if (validity == HIT_TOO_EARLY || validity == HIT_TOO_LATE)
+            {
+                // False alarm. Deal with this if desired.
+            }
+        }
+
+        on_event:finish()
+        {
+            if (item.record_eye_movements)
+                eyetracker.stop_tracking();
+            
+            done(CONTINUE);
+        }
+    }
+
+    // Aborts any ongoing activity on this page and signals the initiator
+    // of the trial that we're done.
+    void done(int msgid)
+    {
+        // Just in case; abort presentation if still active.
+        layout.reset();
+        auditory_stimulus.abort();  
+
+        signal_target(msgid);   // tell caller we're done
+        target = null;
+
+        control.clear_status();
+    }
+
+    void cancel_to_recalibrate()
+    {
+        response.recalibrate = true;
+        done(CANCEL);
+    }
+
+    //==========================================================================
+
+
+    // Performs preparatory work required before using this page.
+    void setup(int ntrials=-1)
+    {
+        test_page_overlay.setup(this);
+
+        // Enable or disable the progress bar.
+        test_page_overlay.show_progress_bar(ntrials);   // disabled if < 0
+
+        // Enable button-box buttons.
+        control.target = this;
+        control.button_box.disable_buttons();
+
+        // Enable the valid buttons to work with a three button box //
+        //                                                          //
+        //                                                          //
+        //       0                                          2       //
+        //                                                          //
+        //                             1                            //
+        //                                                          //
+        // So the left button (0) will be enabled to send a 0       //
+        // to the response object and the right button(2) will      //
+        // send a 1, whereas the middle button(1) will be ignored.  //
+
+        control.button_box.enable_button(0, 0);
+        control.button_box.enable_button(2, 1);
+        
+        if(!allow_selection_by_mouse())
+            hide_cursor();
+    }
+
+
+    // Performs cleaning up if necessary.
+    void cleanup()
+    {
+        test_page_overlay.cleanup();
+
+        control.button_box.disable_buttons();
+        if(control.target == this)
+            control.target = null;
+
+        if(!allow_selection_by_mouse())
+            show_cursor();
+    }
+
+    void quick_show_and_save_picture(
+        Object      caller,
+        TestItem    it,
+        time        tref,
+        int         count = -1,
+        string      output_directory = "/pictures",
+        dur         allowed_time_to_export = 500ms
+        )
+    {
+        item = it;
+
+        // Show this page (if not yet done) and make tref the trial start time.
+        tref = test_window1.show_test_page(this, tref + allowed_time_to_export);
+
+        // Update progress counter (if enabled).
+        test_page_overlay.update_progress_bar(count);
+
+        // Remember who to signal when the trial is over.
+        target = caller;
+
+        time stimonset = layout.start_stimulus(tref);
+
+        save_picture.output_directory = output_directory;
+        save_picture.start(stimonset+allowed_time_to_export); 
+    }
+
+    Timer save_picture
+    {
+        string output_directory;
+        on_event:expire()
+        {
+            string fn = output_directory + string(item.type) + format(item.id,3) + ".png";
+
+             if(!file_exists(output_directory))
+                create_dir_tree(output_directory);
+
+            println("Flying through to generate pictures of the screen and save it as:\n\t" + fn);
+
+            if(file_exists(fn))
+                println("Picture already exists, overwriting!" + fn);
+
+            test_page.export_as_png(fn);
+
+            done(CONTINUE);
+        }
+    }
+
+    // Starts a trial.
+    void action(Object caller, TestItem it, time tref, int count=-1)
+    {
+        // Save passed trial control parameters.
+        item = it;
+
+        // Show this page (if not yet done) and make tref the trial start time.
+        tref = test_window1.show_test_page(this, tref + INTERTRIAL_INTERVAL);
+
+        // Reset response data.
+        response.clear();
+
+        // Start eye-tracker drift-check at tref. When the drift check is done 
+        // the stimulus will be started (see on_event:message() above). On 
+        // drift-check failure or abort we'll exit to do a recalibration.
+        //SetupActionOrder(tref);
+
+        if (item.do_drift_check)
+            drift_check_timer.start(tref);
+        else 
+            start_actual_presentation();
+     
+        // Update progress counter (if enabled).
+        test_page_overlay.update_progress_bar(count);
+
+        // Update status line on control window. Cleared in done() above.
+        control.set_status(
+            string(item.id)             + "  " +
+            string(item.sound_filename) + "  " +
+            string(item.image_filename)
+            );
+
+        // Remember who to signal when the trial is over.
+        target = caller;
+    }
+
+    void  start_actual_presentation()
+    {
+        if (item.record_eye_movements) 
+            eyetracker.start_tracking();
+
+        time visstimonset = layout.start_stimulus(event_time + DC_VISUAL_DELAY);
+
+        time audstimonset = auditory_stimulus.play(visstimonset);
+        time audstimoffset = auditory_stimulus.expected_finish_time;
+
+        // Response window starts at onset of the audio and picture target. 
+
+        if(RESPONSE_DURATION > 0s) // auto paced
+            response.start(audstimonset, audstimoffset + RESPONSE_DURATION);
+        else // self paced
+            response.start(audstimonset, RESPONSE_DURATION);
+
+        // Always measure relative to target onset.
+        response.reference_time = audstimonset;
+    }
+
+    bool allow_selection_by_mouse()
+    {
+        return SELECT_ITEMS_BY_MOUSE;
+    }
+
+}
