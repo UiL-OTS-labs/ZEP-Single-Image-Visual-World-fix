@@ -1,7 +1,7 @@
-#Experiment:
+# Experiment:
 Single Image Visual World
 
-#Description:
+# Description:
 Purpose of this experiment is to record participant's eye-movements
 while he/she is listening to a spoken utterance and looking at a 
 screen displaying a semi-realistic scene. For each trial a scene 
@@ -14,7 +14,7 @@ ZEP-Single-Image-Visual-World-BOILERPLATE experiment, the main difference
 lies in that the image is briefly masked by a blank screen and a fixation
 cross.
 
-#Pseudorandomisation
+# Pseudorandomisation
 Current pseudorandomisation rules:
 * First item must be a filler item.
 * The maximum number of subsequent non-filler items is 3.
@@ -22,7 +22,7 @@ Current pseudorandomisation rules:
 You can test the pseudorandomisation by running
  zep test_pseudorandomisation.zp
 
-#Regions of interest
+# Regions of interest
 You can make regions of interest selectable (i.e. equivalent with a button) by
 setting
  `SELECT_ITEMS_BY_MOUSE = true;`
@@ -34,7 +34,7 @@ pictures) by setting
 in defs.zm. This allows you to double check if they are what you expect them
 too be.
 
-#Screencaptures for postprocessing
+# Screencaptures for postprocessing
 To generate pictures of the screen for region-of-interest selection run
  zep quick_show_and_save_pictures.zp
 This will output pictures (PNG) in 
@@ -42,19 +42,19 @@ This will output pictures (PNG) in
  You might need to change the name of the directories based on your
  post processing of choice.
 
-#Author:
+# Author:
 
-#Client:
+# Client:
   
-#Supervisor:
+# Supervisor:
 
-#References:
+# References:
 Huettig, F., Rommers, J., Meyer, A.S. (2011).
 Using the visual world paradigm to study language processing: 
 a review and critical evaluation.
 Acta Psychologica.
 
-#DISCLAIMER
+# DISCLAIMER
 
 This experiment script is released under the terms of the GNU General Public
 License (see http://www.gnu.org/licenses/gpl-2.0.html). It is distributed in
