@@ -152,7 +152,7 @@ Page test_page
                     }
                 }
 
-                // This 
+                // This rectangle will mask the image1.
                 RectangleShape mask
                 {
                     init()
@@ -167,6 +167,7 @@ Page test_page
                     }
                 }
                 
+                // The cross will be presented on the image mask.
                 CrossShape cross
                 {
                     init()
