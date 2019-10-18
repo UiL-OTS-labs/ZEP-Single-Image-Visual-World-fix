@@ -9,6 +9,11 @@ is displayed and an utterance relating to the scene is played.
 Participant's task is to carefully look and listen. Self-paced. 
 Output: Eye-Tracking data as collected by the eye-tracker.
 
+This experiment is in essence the same as the regular
+ZEP-Single-Image-Visual-World-BOILERPLATE experiment, the main difference
+lies in that the image is briefly masked by a blank screen and a fixation
+cross.
+
 #Pseudorandomisation
 Current pseudorandomisation rules:
 * First item must be a filler item.
@@ -18,20 +23,24 @@ You can test the pseudorandomisation by running
  zep test_pseudorandomisation.zp
 
 #Regions of interest
-You can make regions of interest selectable (i.e. equivalent with a button) by setting
+You can make regions of interest selectable (i.e. equivalent with a button) by
+setting
  `SELECT_ITEMS_BY_MOUSE = true;`
 in defs.zm
 
-You can highlight the regions of interest (default configured to overlap with pictures) by setting
+You can highlight the regions of interest (default configured to overlap with
+pictures) by setting
  `SHOW_REGION_OF_INTEREST = true;`
-in defs.zm. This allows you to double check if they are what you expect them too be.
+in defs.zm. This allows you to double check if they are what you expect them
+too be.
 
 #Screencaptures for postprocessing
 To generate pictures of the screen for region-of-interest selection run
  zep quick_show_and_save_pictures.zp
 This will output pictures (PNG) in 
  `./data/visworldx/img/`
- You might need to change the name of the directories based on your postprocessing of choice.
+ You might need to change the name of the directories based on your
+ post processing of choice.
 
 #Author:
 
